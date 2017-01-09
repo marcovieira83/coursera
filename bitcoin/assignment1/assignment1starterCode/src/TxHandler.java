@@ -99,6 +99,6 @@ public class TxHandler {
             }
         }
 
-        return (Transaction[]) validTxs.toArray();
+        return validTxs.toArray(new Transaction[1000]);
     }
 }
