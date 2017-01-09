@@ -29,6 +29,7 @@ public class TxHandler {
     public boolean isValidTx(Transaction tx) {
         Set<UTXO> utxoUsed = new HashSet<UTXO>();
         double inputSum = 0d;
+        int inputIndex = 0;
         for (Transaction.Input input : tx.getInputs()) {
             // a partir do hash e do indice, procura no pool. Se encontrar, eh porque pode gastar.
             UTXO utxo = new UTXO(input.prevTxHash, input.outputIndex);
@@ -41,7 +42,7 @@ public class TxHandler {
             }
 
             // (2) the signatures on each input of {@code tx} are valid
-            byte[] message = tx.getRawDataToSign(input.outputIndex);
+            byte[] message = tx.getRawDataToSign(inputIndex++);
             if (!Crypto.verifySignature(outputBeingConsumed.address, message, input.signature)) {
                 System.out.println("isValid (2) falhou");
                 return false;
