@@ -19,10 +19,16 @@ public class Simulation {
       // code for all 3x3x3x2 = 54 combinations.
 
       int numNodes = 100;
-      double p_graph = Double.parseDouble(args[0]); // parameter for random graph: prob. that an edge will exist
-      double p_malicious = Double.parseDouble(args[1]); // prob. that a node will be set to be malicious
-      double p_txDistribution = Double.parseDouble(args[2]); // probability of assigning an initial transaction to each node 
-      int numRounds = Integer.parseInt(args[3]); // number of simulation rounds your nodes will run for
+//      double p_graph = Double.parseDouble(args[0]); // parameter for random graph: prob. that an edge will exist
+//      double p_malicious = Double.parseDouble(args[1]); // prob. that a node will be set to be malicious
+//      double p_txDistribution = Double.parseDouble(args[2]); // probability of assigning an initial transaction to each node
+//      int numRounds = Integer.parseInt(args[3]); // number of simulation rounds your nodes will run for
+
+      double p_graph = .1d;
+      double p_malicious = .15d;
+      double p_txDistribution = .10;
+      int numRounds = 10;
+
 
       // pick which nodes are malicious and which are compliant
       Node[] nodes = new Node[numNodes];
@@ -30,7 +36,8 @@ public class Simulation {
          if(Math.random() < p_malicious)
             // When you are ready to try testing with malicious nodes, replace the
             // instantiation below with an instantiation of a MaliciousNode
-            nodes[i] = new MalDoNothing(p_graph, p_malicious, p_txDistribution, numRounds);
+//            nodes[i] = new MalDoNothing(p_graph, p_malicious, p_txDistribution, numRounds);
+            nodes[i] = new CompliantNode(p_graph, p_malicious, p_txDistribution, numRounds);
          else
             nodes[i] = new CompliantNode(p_graph, p_malicious, p_txDistribution, numRounds);
       }

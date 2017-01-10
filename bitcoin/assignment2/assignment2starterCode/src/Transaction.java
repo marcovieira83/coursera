@@ -25,4 +25,8 @@ final public class Transaction {
     public int hashCode() {
         return id;
     }
+
+    public String toString() {
+        return new Integer(id).toString();
+    }
 }
