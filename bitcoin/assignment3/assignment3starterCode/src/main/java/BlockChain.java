@@ -22,15 +22,11 @@ public class BlockChain {
         private int height;
         private UTXOPool utxoPool;
 
-        public BlockNode(Block block, UTXOPool utxoPool) {
+        public BlockNode(Block block, UTXOPool utxoPool, BlockNode parent) {
             this.element = block;
             this.utxoPool = utxoPool;
-            this.height = this.parent == null ? 0 : (this.parent.height + 1);
-        }
-
-        public BlockNode(Block block, UTXOPool utxoPool, BlockNode parent) {
-            this(block, utxoPool);
             this.parent = parent;
+            this.height = this.parent == null ? 0 : (this.parent.height + 1);
         }
 
         public BlockNode addChild(Block block) {
@@ -39,19 +35,15 @@ public class BlockChain {
             return child;
         }
     }
-
-    private int genesisBlockHashHashCode = 0;
-
     /**
      * create an empty block chain with just a genesis block. Assume {@code genesisBlock} is a valid
      * block
      */
     public BlockChain(Block genesisBlock) {
-        BlockNode blockNode = new BlockNode(genesisBlock, new UTXOPool());
+        BlockNode blockNode = new BlockNode(genesisBlock, new UTXOPool(), null);
         this.maxHeightBlockNode = blockNode;
         ByteArrayWrapper genesisBlockHash = new ByteArrayWrapper(genesisBlock.getHash());
         this.blockchain.put(genesisBlockHash, this.maxHeightBlockNode);
-        this.genesisBlockHashHashCode = genesisBlockHash.hashCode();
 
         updateUTXOPool(genesisBlock, blockNode);
     }
@@ -99,21 +91,26 @@ public class BlockChain {
 
         ByteArrayWrapper prevBlockHashWrap = new ByteArrayWrapper(prevBlockHash);
         BlockNode parentBlockNode = this.blockchain.get(prevBlockHashWrap);
-        if (parentBlockNode == null) {
-            return false;
-        }
+        if (parentBlockNode == null) return false;
+
         UTXOPool utxoPool = parentBlockNode.utxoPool;
         TxHandler txHandler = new TxHandler(utxoPool);
-        Transaction[] validTxs = txHandler.handleTxs(block.getTransactions().toArray(new Transaction[0]));
+        Transaction[] validTxs = txHandler.handleTxs(
+                block.getTransactions().toArray(new Transaction[block.getTransactions().size()]));
         if (validTxs.length != block.getTransactions().size()) return false;
 
-//        height > (maxHeight - CUT_OFF_AGE)
-        if ((parentBlockNode.height + 1) <= this.maxHeightBlockNode.height - CUT_OFF_AGE) {
-            return false;
-        }
+        if ((parentBlockNode.height + 1) <= this.maxHeightBlockNode.height - CUT_OFF_AGE) return false;
+
         BlockNode newBlockNode = parentBlockNode.addChild(block);
         blockchain.put(new ByteArrayWrapper(block.getHash()), newBlockNode);
         this.updateUTXOPool(block, newBlockNode);
+
+
+//        if (true)
+//            throw new IllegalStateException("newHeight: " + newBlockNode.height + "; maxHeight: " + this.maxHeightBlockNode.height);
+
+        if (newBlockNode.height > this.maxHeightBlockNode.height) { this.maxHeightBlockNode = newBlockNode;
+        }
         return true;
     }
 
@@ -121,5 +118,4 @@ public class BlockChain {
     public void addTransaction(Transaction tx) {
         this.transactionPool.addTransaction(tx);
     }
-
 }
