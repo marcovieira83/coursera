@@ -18,7 +18,6 @@ public class BlockChain {
         private Block element;
         private BlockNode parent;
         private List<BlockNode> children = new ArrayList<>();
-
         private int height;
         private UTXOPool utxoPool;
 
@@ -29,8 +28,8 @@ public class BlockChain {
             this.height = this.parent == null ? 0 : (this.parent.height + 1);
         }
 
-        public BlockNode addChild(Block block) {
-            BlockNode child = new BlockNode(block, new UTXOPool(this.utxoPool), this);
+        public BlockNode addChild(Block block, UTXOPool utxoPool) {
+            BlockNode child = new BlockNode(block, utxoPool, this);
             this.children.add(child);
             return child;
         }
@@ -40,23 +39,14 @@ public class BlockChain {
      * block
      */
     public BlockChain(Block genesisBlock) {
-        BlockNode blockNode = new BlockNode(genesisBlock, new UTXOPool(), null);
+        UTXOPool utxoPool = new UTXOPool();
+        BlockNode blockNode = new BlockNode(genesisBlock, utxoPool, null);
         this.maxHeightBlockNode = blockNode;
         ByteArrayWrapper genesisBlockHash = new ByteArrayWrapper(genesisBlock.getHash());
         this.blockchain.put(genesisBlockHash, this.maxHeightBlockNode);
 
-        updateUTXOPool(genesisBlock, blockNode);
+        addOutputsUTXOPool(genesisBlock, utxoPool);
     }
-
-    private void updateUTXOPool(Block genesisBlock, BlockNode blockNode) {
-        Transaction tx = genesisBlock.getCoinbase();
-        int index = 0;
-        for (Transaction.Output output : tx.getOutputs()) {
-            final UTXO utxo = new UTXO(tx.getHash(), index++);
-            blockNode.utxoPool.addUTXO(utxo, output);
-        }
-    }
-
 
     /** Get the maximum height block */
     public Block getMaxHeightBlock() {
@@ -64,9 +54,7 @@ public class BlockChain {
     }
 
     /** Get the UTXOPool for mining a new block on top of max height block */
-    public UTXOPool getMaxHeightUTXOPool() {
-        return this.maxHeightBlockNode.utxoPool;
-    }
+    public UTXOPool getMaxHeightUTXOPool() { return new UTXOPool(this.maxHeightBlockNode.utxoPool); }
 
     /** Get the transaction pool to mine a new block */
     public TransactionPool getTransactionPool() {
@@ -93,7 +81,7 @@ public class BlockChain {
         BlockNode parentBlockNode = this.blockchain.get(prevBlockHashWrap);
         if (parentBlockNode == null) return false;
 
-        UTXOPool utxoPool = parentBlockNode.utxoPool;
+        UTXOPool utxoPool = new UTXOPool(parentBlockNode.utxoPool);
         TxHandler txHandler = new TxHandler(utxoPool);
         Transaction[] validTxs = txHandler.handleTxs(
                 block.getTransactions().toArray(new Transaction[block.getTransactions().size()]));
@@ -101,17 +89,23 @@ public class BlockChain {
 
         if ((parentBlockNode.height + 1) <= this.maxHeightBlockNode.height - CUT_OFF_AGE) return false;
 
-        BlockNode newBlockNode = parentBlockNode.addChild(block);
+        UTXOPool newUTXOPool = txHandler.getUTXOPool();
+        this.addOutputsUTXOPool(block, newUTXOPool);
+        BlockNode newBlockNode = parentBlockNode.addChild(block, newUTXOPool);
         blockchain.put(new ByteArrayWrapper(block.getHash()), newBlockNode);
-        this.updateUTXOPool(block, newBlockNode);
 
+        if (newBlockNode.height > this.maxHeightBlockNode.height) this.maxHeightBlockNode = newBlockNode;
 
-//        if (true)
-//            throw new IllegalStateException("newHeight: " + newBlockNode.height + "; maxHeight: " + this.maxHeightBlockNode.height);
-
-        if (newBlockNode.height > this.maxHeightBlockNode.height) { this.maxHeightBlockNode = newBlockNode;
-        }
         return true;
+    }
+
+    private void addOutputsUTXOPool(Block block, UTXOPool utxoPool) {
+        Transaction tx = block.getCoinbase();
+        int index = 0;
+        for (Transaction.Output output : tx.getOutputs()) {
+            final UTXO utxo = new UTXO(tx.getHash(), index++);
+            utxoPool.addUTXO(utxo, output);
+        }
     }
 
     /** Add a transaction to the transaction pool */
